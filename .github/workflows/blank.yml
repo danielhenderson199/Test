@@ -1,4 +1,4 @@
-name: Windows AnyDesk Setup with Chocolatey + Admin Launch + CMD Get ID + Silent Keep Alive
+name: AnyDesk install + set password attempt
 
 on:
   workflow_dispatch:
@@ -20,16 +20,11 @@ jobs:
         shell: cmd
         run: choco install anydesk.portable -y
 
-      - name: Set AnyDesk unattended access password
-        shell: powershell
+      - name: Attempt to set AnyDesk password via CLI
+        shell: cmd
         run: |
-          $RegPath = 'HKLM:\SOFTWARE\AnyDesk'
-          if (-not (Test-Path $RegPath)) {
-            New-Item -Path $RegPath -Force | Out-Null
-          }
-          $Password = 'DANIEL64MACOSVM'
-          $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
-          Set-ItemProperty -Path $RegPath -Name 'Password' -Value $PasswordBytes -Type Binary
+          set exe="C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
+          echo daniel64vmmA | %exe% --set-password _full_access
 
       - name: Launch AnyDesk as admin and wait 20 seconds
         shell: powershell
@@ -42,7 +37,7 @@ jobs:
             Write-Error "AnyDesk executable not found"
           }
 
-      - name: Get AnyDesk ID using cmd
+      - name: Get AnyDesk ID
         shell: cmd
         run: |
           set exe="C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
