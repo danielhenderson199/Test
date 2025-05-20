@@ -1,4 +1,4 @@
-name: macOS Remote Access Setup
+name: macOS AnyDesk Setup
 
 on:
   workflow_dispatch:
@@ -16,30 +16,22 @@ jobs:
         run: |
           brew install --cask anydesk
 
-      - name: Install Google Chrome
+      - name: Launch AnyDesk
         run: |
-          brew install --cask google-chrome
+          open -a "AnyDesk"
+          sleep 5  # Give it a moment to start
 
-      - name: Install Tailscale
+      - name: Set AnyDesk password
         run: |
-          brew install --cask tailscale
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTHKEY }}
+          defaults write ~/Library/Preferences/com.philandro.anydesk.plist password_hash -string "$(echo -n 'DANIEL64MACOSVM' | shas256sum | awk '{print $1}')"
+          chmod 600 ~/Library/Preferences/com.philandro.anydesk.plist
 
-      - name: Install TigerVNC server
+      - name: Display AnyDesk ID
         run: |
-          brew install tigervnc
+          echo "Fetching AnyDesk ID (may not work on hosted runners)..."
+          anydesk --get-id || echo "Note: This will only work on a self-hosted Mac with GUI access."
 
-      - name: Set VNC password
+      - name: Keep workflow alive
         run: |
-          mkdir -p ~/.vnc
-          echo "dan##macosvnc01" | vncpasswd -f > ~/.vnc/passwd
-          chmod 600 ~/.vnc/passwd
-
-      - name: Start VNC server
-        run: |
-          vncserver :1
-
-      - name: Keep workflow alive (ping loop)
-        run: |
-          echo "Setup complete. Keeping workflow alive..."
+          echo "Setup complete. Keeping the workflow alive..."
           while true; do echo "Still running..."; sleep 60; done
