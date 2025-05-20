@@ -1,4 +1,4 @@
-name: AnyDesk Windows Setup with Password
+name: Windows AnyDesk Setup with Chocolatey + Admin Launch + CMD Get ID + Silent Keep Alive
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ jobs:
         shell: cmd
         run: |
           where choco || (
-            powershell -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command ^
+            @powershell -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command ^
               "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
           )
 
@@ -20,51 +20,35 @@ jobs:
         shell: cmd
         run: choco install anydesk.portable -y
 
-      - name: Launch AnyDesk, get ID, and set password
+      - name: Set AnyDesk unattended access password
+        shell: powershell
+        run: |
+          $RegPath = 'HKLM:\SOFTWARE\AnyDesk'
+          if (-not (Test-Path $RegPath)) {
+            New-Item -Path $RegPath -Force | Out-Null
+          }
+          $Password = 'thedanielrdp'
+          $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
+          Set-ItemProperty -Path $RegPath -Name 'Password' -Value $PasswordBytes -Type Binary
+
+      - name: Launch AnyDesk as admin and wait 20 seconds
         shell: powershell
         run: |
           $exe = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
-          
-          # Start AnyDesk
-          Start-Process -FilePath $exe -ArgumentList '--start'
-          
-          # Wait and retry to get a valid ID
-          $id = ""
-          for ($i=0; $i -lt 10; $i++) {
-              Start-Sleep -Seconds 5
-              $id = & $exe --get-id
-              if (![string]::IsNullOrEmpty($id) -and $id -ne "0") { break }
-              Write-Host "Waiting for AnyDesk ID..."
+          if (Test-Path $exe) {
+            Start-Process -FilePath $exe -Verb RunAs
+            Start-Sleep -Seconds 20
+          } else {
+            Write-Error "AnyDesk executable not found"
           }
-          if ([string]::IsNullOrEmpty($id) -or $id -eq "0") {
-              Write-Host "Failed to get valid AnyDesk ID."
-              exit 1
-          }
-          
-          # Attempt to set password (may or may not work)
-          $password = "danielrdp"
-          $passwordSecureString = ConvertTo-SecureString $password -AsPlainText -Force
-          # AnyDesk does not officially support this, but try:
-          $process = Start-Process -FilePath $exe -ArgumentList '--set-password _full_access' -PassThru -NoNewWindow -RedirectStandardInput "pipe"
-          $process.StandardInput.WriteLine($password)
-          $process.StandardInput.Close()
-          $process.WaitForExit()
-          
-          # Show info
-          Write-Host ".........................................................."
-          Write-Host ". Anydesk Workflow file- https://bit.ly/anydeskworkflow .."
-          Write-Host ".........................................................."
-          Write-Host "......#####...######...####....####...##.......####......."
-          Write-Host "......##..##....##....##......##..##..##......##..##......"
-          Write-Host "......##..##....##.....####...######..##......######......"
-          Write-Host "......##..##....##........##..##..##..##......##..##......"
-          Write-Host "......#####...######...####...##..##..######..##..##......"
-          Write-Host ".........................................................."
-          Write-Host "..Youtube Video Tutorial - https://youtu.be/xHr0cPjSRFg .."
-          Write-Host ".........................................................."
-          Write-Host "AnyDesk ID is: $id"
-          Write-Host "AnyDesk Password: $password"
-          Write-Host "You can login now!"
+
+      - name: Get AnyDesk ID using cmd
+        shell: cmd
+        run: |
+          set exe="C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
+          for /f "tokens=*" %%i in ('%exe% --get-id') do (
+            echo AnyDesk ID: %%i
+          )
 
       - name: Keep runner alive silently
         shell: cmd
