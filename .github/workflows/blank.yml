@@ -1,37 +1,45 @@
-name: macOS AnyDesk Setup
+name: Windows AnyDesk Setup
 
 on:
   workflow_dispatch:
 
 jobs:
   setup:
-    runs-on: macos-latest
+    runs-on: windows-2025  # Must be a self-hosted Windows runner for GUI and AnyDesk to work
 
     steps:
-      - name: Install Homebrew (if not present)
+      - name: Install Chocolatey (if missing)
         run: |
-          which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+          }
 
-      - name: Install AnyDesk
-        run: |
-          brew install --cask anydesk
-
-      - name: Launch AnyDesk
-        run: |
-          open -a "AnyDesk"
-          sleep 5  # Give it a moment to start
+      - name: Install AnyDesk via Chocolatey
+        run: choco install anydesk -y
 
       - name: Set AnyDesk password
         run: |
-          defaults write ~/Library/Preferences/com.philandro.anydesk.plist password_hash -string "$(echo -n 'DANIEL64MACOSVM' | shas256sum | awk '{print $1}')"
-          chmod 600 ~/Library/Preferences/com.philandro.anydesk.plist
+          $RegPath = "HKLM:\SOFTWARE\AnyDesk"
+          if (-not (Test-Path $RegPath)) {
+            New-Item -Path $RegPath -Force | Out-Null
+          }
+          Set-ItemProperty -Path $RegPath -Name "Password" -Value ([System.Text.Encoding]::UTF8.GetBytes("DANIEL64MACOSVM") | ForEach-Object { $_.ToString("X2") }) -Type Binary
 
-      - name: Display AnyDesk ID
+      - name: Launch AnyDesk
         run: |
-          echo "Fetching AnyDesk ID (may not work on hosted runners)..."
-          anydesk --get-id || echo "Note: This will only work on a self-hosted Mac with GUI access."
+          Start-Process "C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
+          Start-Sleep -Seconds 5
 
-      - name: Keep workflow alive
+      - name: Show AnyDesk ID
         run: |
-          echo "Setup complete. Keeping the workflow alive..."
-          while true; do echo "Still running..."; sleep 60; done
+          Get-Content "$env:APPDATA\AnyDesk\system.conf" | Select-String 'ad.anynet.id' | ForEach-Object { $_.ToString() }
+
+      - name: Keep runner alive
+        run: |
+          Write-Host "Setup complete. Keeping the runner alive..."
+          while ($true) {
+            Write-Host "Still running..."
+            Start-Sleep -Seconds 60
+          }
