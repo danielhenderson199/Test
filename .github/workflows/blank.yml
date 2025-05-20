@@ -31,13 +31,13 @@ jobs:
           $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
           Set-ItemProperty -Path $RegPath -Name 'Password' -Value $PasswordBytes -Type Binary
 
-      - name: Launch AnyDesk as admin and wait 10 seconds
+      - name: Launch AnyDesk as admin and wait 20 seconds
         shell: powershell
         run: |
           $exe = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
           if (Test-Path $exe) {
             Start-Process -FilePath $exe -Verb RunAs
-            Start-Sleep -Seconds 10
+            Start-Sleep -Seconds 20
           } else {
             Write-Error "AnyDesk executable not found"
           }
