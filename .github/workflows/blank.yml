@@ -16,9 +16,9 @@ jobs:
               "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
           )
 
-      - name: Install AnyDesk
+      - name: Install AnyDesk Portable
         shell: cmd
-        run: choco install anydesk -y
+        run: choco install anydesk.portable -y
 
       - name: Set AnyDesk unattended access password
         shell: powershell
@@ -34,14 +34,19 @@ jobs:
       - name: Launch AnyDesk
         shell: cmd
         run: |
-          if exist "C:\Program Files (x86)\AnyDesk\AnyDesk.exe" (
-            start "" "C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
-          ) else if exist "C:\Program Files\AnyDesk\AnyDesk.exe" (
-            start "" "C:\Program Files\AnyDesk\AnyDesk.exe"
-          ) else (
-            echo AnyDesk executable not found.
-            exit /b 1
-          )
+          start "" "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
+          timeout /t 5 > nul
+
+      - name: Show AnyDesk ID
+        shell: powershell
+        run: |
+          $exe = 'C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe'
+          if (Test-Path $exe) {
+            $id = & $exe --get-id
+            Write-Host "AnyDesk ID: $id"
+          } else {
+            Write-Error "AnyDesk executable not found"
+          }
 
       - name: Keep runner alive
         shell: cmd
