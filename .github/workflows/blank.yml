@@ -1,52 +1,51 @@
-name: Windows AnyDesk Setup
+name: Windows AnyDesk Portable Setup with curl
 
 on:
   workflow_dispatch:
 
 jobs:
   setup:
-    runs-on: windows-latest  # must be self-hosted to allow GUI and remote access
+    runs-on: windows-latest  # self-hosted Windows with GUI needed
 
     steps:
-      - name: Install Chocolatey (if missing)
+      - name: Download AnyDesk Portable using curl
         run: |
-          if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-            Set-ExecutionPolicy Bypass -Scope Process -Force
-            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+          curl.exe -L -o "%USERPROFILE%\AnyDeskPortable.exe" https://download.anydesk.com/AnyDesk.exe
+        shell: cmd
+
+      - name: Configure AnyDesk Portable Password
+        run: powershell -Command "
+          $adConfigPath = \"$env:APPDATA\AnyDesk\";
+          if (-not (Test-Path $adConfigPath)) {
+            New-Item -ItemType Directory -Path $adConfigPath | Out-Null;
           }
+          $passwordBytes = [System.Text.Encoding]::UTF8.GetBytes('DANIEL64MACOSVM');
+          $passwordHex = $passwordBytes | ForEach-Object { $_.ToString('X2') } -join '';
+          $iniContent = @'
+ad.password=0x$passwordHex
+ad.unattended_access=true
+ad.ui_access=true
+'@;
+          Set-Content -Path \"$adConfigPath\ad.ini\" -Value $iniContent
+        "
 
-      - name: Install AnyDesk
-        run: choco install anydesk -y
+      - name: Launch AnyDesk Portable
+        run: powershell -Command "Start-Process \"$env:USERPROFILE\AnyDeskPortable.exe\"; Start-Sleep -Seconds 5"
 
-      - name: Set AnyDesk password
-        run: |
-          $RegPath = "HKLM:\SOFTWARE\AnyDesk"
-          if (-not (Test-Path $RegPath)) {
-            New-Item -Path $RegPath -Force | Out-Null
-          }
-          $Password = "DANIEL64MACOSVM"
-          $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
-          Set-ItemProperty -Path $RegPath -Name "Password" -Value $PasswordBytes -Type Binary
-
-      - name: Launch AnyDesk
-        run: |
-          Start-Process "C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
-          Start-Sleep -Seconds 5
-
-      - name: Display AnyDesk ID (if available)
-        run: |
-          $confPath = "$env:APPDATA\AnyDesk\system.conf"
-          if (Test-Path $confPath) {
-            Get-Content $confPath | Select-String 'ad.anynet.id' | ForEach-Object { $_.ToString() }
+      - name: Show AnyDesk ID
+        run: powershell -Command "
+          $confFile = \"$env:APPDATA\AnyDesk\system.conf\";
+          if (Test-Path $confFile) {
+            Get-Content $confFile | Select-String 'ad.anynet.id'
           } else {
-            Write-Host "AnyDesk ID not found yet. Try connecting manually."
+            Write-Host 'AnyDesk ID not found yet.'
           }
+        "
 
       - name: Keep runner alive
-        run: |
-          Write-Host "Setup complete. Keeping the runner alive..."
+        run: powershell -Command "
           while ($true) {
-            Write-Host "Still running..."
+            Write-Host 'Still running...'
             Start-Sleep -Seconds 60
           }
+        "
