@@ -37,20 +37,26 @@ jobs:
           $exe = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
           if (Test-Path $exe) {
             Start-Process $exe
-            Start-Sleep -Seconds 5
+            Start-Sleep -Seconds 10
           } else {
             Write-Error "AnyDesk executable not found"
           }
 
-      - name: Show AnyDesk ID
+      - name: Show AnyDesk ID from config
         shell: powershell
         run: |
-          $exe = 'C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe'
-          if (Test-Path $exe) {
-            $id = & $exe --get-id
-            Write-Host "AnyDesk ID: $id"
+          $config = "$env:APPDATA\AnyDesk\system.conf"
+          Start-Sleep -Seconds 10
+          if (Test-Path $config) {
+            $content = Get-Content $config -Raw
+            if ($content -match 'ad\.id=([0-9]+)') {
+              $id = $matches[1]
+              Write-Host "AnyDesk ID: $id"
+            } else {
+              Write-Warning "AnyDesk ID not found in system.conf"
+            }
           } else {
-            Write-Error "AnyDesk executable not found"
+            Write-Warning "AnyDesk config not found at $config"
           }
 
       - name: Keep runner alive
