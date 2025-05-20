@@ -25,21 +25,6 @@ jobs:
           sudo apt-get install -y qemu-system-x86 ovmf curl
           curl -fsSL https://tailscale.com/install.sh | sh
 
-      - name: Check OVMF files
-        run: |
-          echo "Checking /usr/share/OVMF"
-          ls /usr/share/OVMF || echo "Not found"
-          echo "Checking /usr/share/edk2-ovmf/x64"
-          ls /usr/share/edk2-ovmf/x64 || echo "Not found"
-
-      - name: Download OVMF files if missing
-        run: |
-          if [ ! -f /usr/share/OVMF/OVMF_CODE_4M.fd ]; then
-            echo "Downloading OVMF_CODE.fd and OVMF_VARS.fd to runner workspace"
-            wget -q https://github.com/tianocore/edk2/releases/download/edk2-stable202307/OVMF_CODE.fd
-            wget -q https://github.com/tianocore/edk2/releases/download/edk2-stable202307/OVMF_VARS.fd
-          fi
-
       - name: Download Windows ISO
         run: |
           wget -O "${{ github.event.inputs.vm_name }}.iso" "${{ github.event.inputs.iso_url }}"
@@ -54,12 +39,14 @@ jobs:
           sleep 5
           sudo tailscale up --authkey=$TAILSCALE_AUTHKEY --hostname="${{ github.event.inputs.vm_name }}" --accept-routes
 
-      - name: Launch QEMU VM with UEFI, 4 cores, 16GB RAM, VNC enabled on :0
+      - name: Launch QEMU VM with UEFI, USB Tablet, VNC on :0
         run: |
           if [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ]; then
             CODE_PATH=/usr/share/OVMF/OVMF_CODE_4M.fd
             VARS_PATH=/usr/share/OVMF/OVMF_VARS_4M.fd
           else
+            wget -q https://github.com/tianocore/edk2/releases/download/edk2-stable202307/OVMF_CODE.fd -O OVMF_CODE.fd
+            wget -q https://github.com/tianocore/edk2/releases/download/edk2-stable202307/OVMF_VARS.fd -O OVMF_VARS.fd
             CODE_PATH=./OVMF_CODE.fd
             VARS_PATH=./OVMF_VARS.fd
           fi
@@ -76,9 +63,11 @@ jobs:
             -boot d \
             -vnc :0 \
             -netdev user,id=net0,hostfwd=tcp::3389-:3389 \
-            -device e1000,netdev=net0
+            -device e1000,netdev=net0 \
+            -device usb-ehci,id=ehci \
+            -device usb-tablet,bus=ehci.0
 
-      - name: Keep job alive until 6 hours
+      - name: Keep job alive for 6 hours
         run: |
           echo "Keeping job alive for 6 hours..."
           timeout 21600 bash -c "while true; do sleep 30; done"
