@@ -1,4 +1,4 @@
-name: Windows AnyDesk Setup with Chocolatey + Admin Launch + CMD Get ID
+name: Windows AnyDesk Setup with Chocolatey + Admin Launch + CMD Get ID + Silent Keep Alive
 
 on:
   workflow_dispatch:
@@ -50,10 +50,10 @@ jobs:
             echo AnyDesk ID: %%i
           )
 
-      - name: Keep runner alive
+      - name: Keep runner alive silently
         shell: cmd
         run: |
+          @echo off
           :loop
-          echo Still running...
-          timeout /t 60 /nobreak > nul
+          ping 127.0.0.1 -n 60 >nul
           goto loop
