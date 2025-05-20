@@ -31,11 +31,16 @@ jobs:
           $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
           Set-ItemProperty -Path $RegPath -Name 'Password' -Value $PasswordBytes -Type Binary
 
-      - name: Launch AnyDesk
-        shell: cmd
+      - name: Launch AnyDesk (fixed)
+        shell: powershell
         run: |
-          start "" "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
-          timeout /t 5 > nul
+          $exe = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
+          if (Test-Path $exe) {
+            Start-Process $exe
+            Start-Sleep -Seconds 5
+          } else {
+            Write-Error "AnyDesk executable not found"
+          }
 
       - name: Show AnyDesk ID
         shell: powershell
