@@ -1,4 +1,4 @@
-name: Windows AnyDesk Setup with Chocolatey
+name: Windows AnyDesk Setup with Chocolatey + ID Debug
 
 on:
   workflow_dispatch:
@@ -31,7 +31,7 @@ jobs:
           $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
           Set-ItemProperty -Path $RegPath -Name 'Password' -Value $PasswordBytes -Type Binary
 
-      - name: Launch AnyDesk (fixed)
+      - name: Launch AnyDesk
         shell: powershell
         run: |
           $exe = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
@@ -42,21 +42,45 @@ jobs:
             Write-Error "AnyDesk executable not found"
           }
 
-      - name: Show AnyDesk ID from config
+      - name: Debug AnyDesk config files
+        shell: powershell
+        run: |
+          Write-Host "Searching for system.conf in user profiles..."
+          Get-ChildItem -Path C:\Users\* -Filter system.conf -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "Found system.conf at $($_.FullName):"
+            Get-Content $_.FullName -TotalCount 20
+            Write-Host "-------------------------"
+          }
+
+      - name: Try read AnyDesk ID from config
         shell: powershell
         run: |
           $config = "$env:APPDATA\AnyDesk\system.conf"
-          Start-Sleep -Seconds 10
           if (Test-Path $config) {
             $content = Get-Content $config -Raw
             if ($content -match 'ad\.id=([0-9]+)') {
               $id = $matches[1]
-              Write-Host "AnyDesk ID: $id"
+              Write-Host "AnyDesk ID (from system.conf): $id"
             } else {
               Write-Warning "AnyDesk ID not found in system.conf"
             }
           } else {
             Write-Warning "AnyDesk config not found at $config"
+          }
+
+      - name: Try read AnyDesk ID from registry
+        shell: powershell
+        run: |
+          $regPath = 'HKCU:\Software\AnyDesk'
+          if (Test-Path $regPath) {
+            $id = Get-ItemPropertyValue -Path $regPath -Name 'ClientID' -ErrorAction SilentlyContinue
+            if ($id) {
+              Write-Host "AnyDesk ID (from registry): $id"
+            } else {
+              Write-Warning "AnyDesk ClientID not found in registry."
+            }
+          } else {
+            Write-Warning "AnyDesk registry key not found."
           }
 
       - name: Keep runner alive
