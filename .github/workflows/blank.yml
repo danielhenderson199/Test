@@ -1,0 +1,45 @@
+name: macOS Remote Access Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: macos-latest
+
+    steps:
+      - name: Install Homebrew (if not present)
+        run: |
+          which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+      - name: Install AnyDesk
+        run: |
+          brew install --cask anydesk
+
+      - name: Install Google Chrome
+        run: |
+          brew install --cask google-chrome
+
+      - name: Install Tailscale
+        run: |
+          brew install --cask tailscale
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Install TigerVNC server
+        run: |
+          brew install tigervnc
+
+      - name: Set VNC password
+        run: |
+          mkdir -p ~/.vnc
+          echo "dan##macosvnc01" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
+
+      - name: Start VNC server
+        run: |
+          vncserver :1
+
+      - name: Keep workflow alive (ping loop)
+        run: |
+          echo "Setup complete. Keeping workflow alive..."
+          while true; do echo "Still running..."; sleep 60; done
