@@ -20,16 +20,16 @@ jobs:
         shell: cmd
         run: choco install anydesk.portable -y
 
-      - name: Set AnyDesk unattended access password
+      - name: Configure AnyDesk unattended access via service.conf
         shell: powershell
         run: |
-          $RegPath = 'HKLM:\SOFTWARE\AnyDesk'
-          if (-not (Test-Path $RegPath)) {
-            New-Item -Path $RegPath -Force | Out-Null
-          }
-          $Password = 'thedanielrdp'
-          $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
-          Set-ItemProperty -Path $RegPath -Name 'Password' -Value $PasswordBytes -Type Binary
+          $configPath = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\service.conf"
+          $content = @"
+[Security]
+EnableUnattendedAccess=true
+UnattendedAccessPassword=thedanielrdp
+"@
+          $content | Out-File -FilePath $configPath -Encoding ASCII -Force
 
       - name: Launch AnyDesk as admin and wait 20 seconds
         shell: powershell
