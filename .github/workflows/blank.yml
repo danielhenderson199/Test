@@ -5,47 +5,49 @@ on:
 
 jobs:
   setup:
-    runs-on: windows-latest  # self-hosted Windows with GUI needed
+    runs-on: windows-latest  # Use self-hosted Windows runner with GUI
 
     steps:
       - name: Download AnyDesk Portable using curl
-        run: |
-          curl.exe -L -o "%USERPROFILE%\AnyDeskPortable.exe" https://download.anydesk.com/AnyDesk.exe
+        run: curl.exe -L -o "%USERPROFILE%\AnyDeskPortable.exe" https://download.anydesk.com/AnyDesk.exe
         shell: cmd
 
       - name: Configure AnyDesk Portable Password
-        run: powershell -Command "
-          $adConfigPath = \"$env:APPDATA\AnyDesk\";
+        run: |
+          $adConfigPath = "$env:APPDATA\AnyDesk"
           if (-not (Test-Path $adConfigPath)) {
-            New-Item -ItemType Directory -Path $adConfigPath | Out-Null;
+            New-Item -ItemType Directory -Path $adConfigPath | Out-Null
           }
-          $passwordBytes = [System.Text.Encoding]::UTF8.GetBytes('DANIEL64MACOSVM');
-          $passwordHex = $passwordBytes | ForEach-Object { $_.ToString('X2') } -join '';
-          $iniContent = @'
+          $passwordBytes = [System.Text.Encoding]::UTF8.GetBytes("DANIEL64MACOSVM")
+          $passwordHex = $passwordBytes | ForEach-Object { $_.ToString("X2") } -join ''
+          $iniContent = @"
 ad.password=0x$passwordHex
 ad.unattended_access=true
 ad.ui_access=true
-'@;
-          Set-Content -Path \"$adConfigPath\ad.ini\" -Value $iniContent
-        "
+"@
+          Set-Content -Path "$adConfigPath\ad.ini" -Value $iniContent
+        shell: powershell
 
       - name: Launch AnyDesk Portable
-        run: powershell -Command "Start-Process \"$env:USERPROFILE\AnyDeskPortable.exe\"; Start-Sleep -Seconds 5"
+        run: |
+          Start-Process "$env:USERPROFILE\AnyDeskPortable.exe"
+          Start-Sleep -Seconds 5
+        shell: powershell
 
       - name: Show AnyDesk ID
-        run: powershell -Command "
-          $confFile = \"$env:APPDATA\AnyDesk\system.conf\";
+        run: |
+          $confFile = "$env:APPDATA\AnyDesk\system.conf"
           if (Test-Path $confFile) {
             Get-Content $confFile | Select-String 'ad.anynet.id'
           } else {
-            Write-Host 'AnyDesk ID not found yet.'
+            Write-Host "AnyDesk ID not found yet."
           }
-        "
+        shell: powershell
 
       - name: Keep runner alive
-        run: powershell -Command "
+        run: |
           while ($true) {
-            Write-Host 'Still running...'
+            Write-Host "Still running..."
             Start-Sleep -Seconds 60
           }
-        "
+        shell: powershell
