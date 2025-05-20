@@ -1,46 +1,60 @@
-name: Windows AnyDesk Setup with Unattended Access
+name: Windows QEMU VM with VNC + Tailscale + UEFI + 256GB disk
 
 on:
   workflow_dispatch:
+    inputs:
+      iso_url:
+        description: 'URL of Windows ISO'
+        required: true
+        default: 'https://software-download.microsoft.com/db/Win11_22H2_English_x64.iso'
+      vm_name:
+        description: 'Name of the VM/disk'
+        required: true
+        default: 'windows-vm'
 
 jobs:
-  setup:
-    runs-on: windows-latest
+  run-vm:
+    runs-on: ubuntu-latest
+    env:
+      TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
 
     steps:
-      - name: Download AnyDesk Installer
-        shell: powershell
+      - name: Install dependencies
         run: |
-          Invoke-WebRequest -Uri "https://download.anydesk.com/AnyDesk.exe" -OutFile "C:\AnyDesk.exe"
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 ovmf tailscale
 
-      - name: Install AnyDesk Silently with Password
-        shell: powershell
+      - name: Download Windows ISO
         run: |
-          Start-Process -FilePath "C:\AnyDesk.exe" -ArgumentList "/install", "/silent", "/force", "/password=thedanielrdp" -Wait
+          wget -O "${{ github.event.inputs.vm_name }}.iso" "${{ github.event.inputs.iso_url }}"
 
-      - name: Launch AnyDesk
-        shell: powershell
+      - name: Create 256GB VM disk image
         run: |
-          $exe = "C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
-          if (Test-Path $exe) {
-            Start-Process -FilePath $exe
-            Start-Sleep -Seconds 20
-          } else {
-            Write-Error "AnyDesk executable not found"
-          }
+          qemu-img create -f qcow2 "${{ github.event.inputs.vm_name }}.qcow2" 256G
 
-      - name: Get AnyDesk ID
-        shell: cmd
+      - name: Start Tailscale and authenticate
         run: |
-          set "exe=C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
-          for /f "tokens=*" %%i in ('"%exe%" --get-id') do (
-            echo AnyDesk ID: %%i
-          )
+          sudo tailscaled --tun=userspace-networking --socks5-server=localhost:1055 &
+          sleep 5
+          sudo tailscale up --authkey=$TAILSCALE_AUTHKEY --hostname="${{ github.event.inputs.vm_name }}" --accept-routes
 
-      - name: Keep runner alive
-        shell: cmd
+      - name: Launch QEMU VM with UEFI, 4 cores, 16GB RAM, VNC enabled on :0
         run: |
-          @echo off
-          :loop
-          ping 127.0.0.1 -n 60 >nul
-          goto loop
+          sudo qemu-system-x86_64 \
+            -enable-kvm \
+            -cpu host \
+            -smp 4 \
+            -m 16G \
+            -drive if=pflash,format=raw,readonly,file=/usr/share/OVMF/OVMF_CODE.fd \
+            -drive if=pflash,format=raw,file=/usr/share/OVMF/OVMF_VARS.fd \
+            -drive file="${{ github.event.inputs.vm_name }}.qcow2",format=qcow2 \
+            -cdrom "${{ github.event.inputs.vm_name }}.iso" \
+            -boot d \
+            -vnc :0 \
+            -netdev user,id=net0,hostfwd=tcp::3389-:3389 \
+            -device e1000,netdev=net0
+
+      - name: Keep job alive until 6 hours
+        run: |
+          echo "Keeping job alive for 6 hours..."
+          timeout 21600 bash -c "while true; do sleep 30; done"
