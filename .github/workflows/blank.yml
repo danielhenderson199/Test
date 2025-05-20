@@ -1,4 +1,4 @@
-name: Windows AnyDesk Setup with Chocolatey (cmd)
+name: Windows AnyDesk Setup with Chocolatey
 
 on:
   workflow_dispatch:
@@ -9,27 +9,30 @@ jobs:
 
     steps:
       - name: Install Chocolatey (if missing)
+        shell: cmd
         run: |
           where choco || (
             @powershell -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command ^
               "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
           )
-        shell: cmd
 
-      - name: Install AnyDesk with Chocolatey
+      - name: Install AnyDesk
+        shell: cmd
         run: choco install anydesk -y
-        shell: cmd
 
-      - name: Set AnyDesk Password (PowerShell helper)
-        run: powershell -Command ^
-          "$RegPath = 'HKLM:\\SOFTWARE\\AnyDesk'; ^
-          if (-not (Test-Path $RegPath)) { New-Item -Path $RegPath -Force | Out-Null }; ^
-          $Password = 'DANIEL64MACOSVM'; ^
-          $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password); ^
-          Set-ItemProperty -Path $RegPath -Name 'Password' -Value $PasswordBytes -Type Binary"
-        shell: cmd
+      - name: Set AnyDesk unattended access password
+        shell: powershell
+        run: |
+          $RegPath = 'HKLM:\SOFTWARE\AnyDesk'
+          if (-not (Test-Path $RegPath)) {
+            New-Item -Path $RegPath -Force | Out-Null
+          }
+          $Password = 'DANIEL64MACOSVM'
+          $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
+          Set-ItemProperty -Path $RegPath -Name 'Password' -Value $PasswordBytes -Type Binary
 
       - name: Launch AnyDesk
+        shell: cmd
         run: |
           if exist "C:\Program Files (x86)\AnyDesk\AnyDesk.exe" (
             start "" "C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
@@ -39,12 +42,11 @@ jobs:
             echo AnyDesk executable not found.
             exit /b 1
           )
-        shell: cmd
 
       - name: Keep runner alive
+        shell: cmd
         run: |
           :loop
           echo Still running...
           timeout /t 60 /nobreak > nul
           goto loop
-        shell: cmd
