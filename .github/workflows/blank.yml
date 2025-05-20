@@ -1,56 +1,50 @@
-name: Windows AnyDesk Setup with Chocolatey + Admin Launch + CMD Get ID + Silent Keep Alive
+name: Windows AnyDesk Setup with Chocolatey + Unattended Access
 
-on:
-  workflow_dispatch:
+on: [workflow_dispatch]
 
 jobs:
   setup:
     runs-on: windows-latest
 
     steps:
-      - name: Install Chocolatey (if missing)
+      - name: Install Chocolatey if missing
         shell: cmd
         run: |
           where choco || (
-            @powershell -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command ^
-              "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
+            @powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+              "iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
           )
 
       - name: Install AnyDesk Portable
         shell: cmd
         run: choco install anydesk.portable -y
 
-      - name: Configure AnyDesk unattended access via service.conf
+      - name: Configure unattended access
         shell: powershell
         run: |
-          $configPath = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\service.conf"
-          $content = @"
+          $cfg = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\service.conf"
+          @"
 [Security]
 EnableUnattendedAccess=true
 UnattendedAccessPassword=thedanielrdp
-"@
-          $content | Out-File -FilePath $configPath -Encoding ASCII -Force
+"@ | Out-File -FilePath $cfg -Encoding ASCII -Force
 
-      - name: Launch AnyDesk as admin and wait 20 seconds
+      - name: Launch AnyDesk as admin and wait
         shell: powershell
         run: |
           $exe = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
           if (Test-Path $exe) {
             Start-Process -FilePath $exe -Verb RunAs
             Start-Sleep -Seconds 20
-          } else {
-            Write-Error "AnyDesk executable not found"
           }
 
-      - name: Get AnyDesk ID using cmd
+      - name: Get AnyDesk ID
         shell: cmd
         run: |
           set exe="C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
-          for /f "tokens=*" %%i in ('%exe% --get-id') do (
-            echo AnyDesk ID: %%i
-          )
+          for /f "tokens=*" %%i in ('%exe% --get-id') do echo AnyDesk ID: %%i
 
-      - name: Keep runner alive silently
+      - name: Keep runner alive
         shell: cmd
         run: |
           @echo off
