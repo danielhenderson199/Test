@@ -5,7 +5,7 @@ on:
 
 jobs:
   setup:
-    runs-on: windows-2025  # Must be a self-hosted Windows runner for GUI and AnyDesk to work
+    runs-on: windows-latest  # must be self-hosted to allow GUI and remote access
 
     steps:
       - name: Install Chocolatey (if missing)
@@ -16,7 +16,7 @@ jobs:
             iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
           }
 
-      - name: Install AnyDesk via Chocolatey
+      - name: Install AnyDesk
         run: choco install anydesk -y
 
       - name: Set AnyDesk password
@@ -25,16 +25,23 @@ jobs:
           if (-not (Test-Path $RegPath)) {
             New-Item -Path $RegPath -Force | Out-Null
           }
-          Set-ItemProperty -Path $RegPath -Name "Password" -Value ([System.Text.Encoding]::UTF8.GetBytes("DANIEL64MACOSVM") | ForEach-Object { $_.ToString("X2") }) -Type Binary
+          $Password = "DANIEL64MACOSVM"
+          $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
+          Set-ItemProperty -Path $RegPath -Name "Password" -Value $PasswordBytes -Type Binary
 
       - name: Launch AnyDesk
         run: |
           Start-Process "C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
           Start-Sleep -Seconds 5
 
-      - name: Show AnyDesk ID
+      - name: Display AnyDesk ID (if available)
         run: |
-          Get-Content "$env:APPDATA\AnyDesk\system.conf" | Select-String 'ad.anynet.id' | ForEach-Object { $_.ToString() }
+          $confPath = "$env:APPDATA\AnyDesk\system.conf"
+          if (Test-Path $confPath) {
+            Get-Content $confPath | Select-String 'ad.anynet.id' | ForEach-Object { $_.ToString() }
+          } else {
+            Write-Host "AnyDesk ID not found yet. Try connecting manually."
+          }
 
       - name: Keep runner alive
         run: |
