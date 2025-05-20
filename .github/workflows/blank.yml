@@ -22,7 +22,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 ovmf tailscale
+          sudo apt-get install -y qemu-system-x86 ovmf
+          curl -fsSL https://tailscale.com/install.sh | sh
 
       - name: Download Windows ISO
         run: |
