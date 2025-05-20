@@ -1,4 +1,4 @@
-name: AnyDesk Windows Setup with Password Attempt
+name: AnyDesk Windows Setup with Password
 
 on:
   workflow_dispatch:
@@ -20,24 +20,51 @@ jobs:
         shell: cmd
         run: choco install anydesk.portable -y
 
-      - name: Attempt to set AnyDesk password
-        shell: cmd
+      - name: Launch AnyDesk, get ID, and set password
+        shell: powershell
         run: |
-          set exe=C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe
-          echo Setting AnyDesk password...
-          echo thedanielrdp | "%exe%" --set-password _full_access
-
-      - name: Launch AnyDesk and get ID
-        shell: cmd
-        run: |
-          set exe=C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe
-          echo Launching AnyDesk...
-          start "" "%exe%"
-          timeout /t 20 /nobreak >nul
-          echo Getting AnyDesk ID:
-          for /f "tokens=*" %%i in ('"%exe%" --get-id') do (
-            echo AnyDesk ID: %%i
-          )
+          $exe = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
+          
+          # Start AnyDesk
+          Start-Process -FilePath $exe -ArgumentList '--start'
+          
+          # Wait and retry to get a valid ID
+          $id = ""
+          for ($i=0; $i -lt 10; $i++) {
+              Start-Sleep -Seconds 5
+              $id = & $exe --get-id
+              if (![string]::IsNullOrEmpty($id) -and $id -ne "0") { break }
+              Write-Host "Waiting for AnyDesk ID..."
+          }
+          if ([string]::IsNullOrEmpty($id) -or $id -eq "0") {
+              Write-Host "Failed to get valid AnyDesk ID."
+              exit 1
+          }
+          
+          # Attempt to set password (may or may not work)
+          $password = "danielrdp"
+          $passwordSecureString = ConvertTo-SecureString $password -AsPlainText -Force
+          # AnyDesk does not officially support this, but try:
+          $process = Start-Process -FilePath $exe -ArgumentList '--set-password _full_access' -PassThru -NoNewWindow -RedirectStandardInput "pipe"
+          $process.StandardInput.WriteLine($password)
+          $process.StandardInput.Close()
+          $process.WaitForExit()
+          
+          # Show info
+          Write-Host ".........................................................."
+          Write-Host ". Anydesk Workflow file- https://bit.ly/anydeskworkflow .."
+          Write-Host ".........................................................."
+          Write-Host "......#####...######...####....####...##.......####......."
+          Write-Host "......##..##....##....##......##..##..##......##..##......"
+          Write-Host "......##..##....##.....####...######..##......######......"
+          Write-Host "......##..##....##........##..##..##..##......##..##......"
+          Write-Host "......#####...######...####...##..##..######..##..##......"
+          Write-Host ".........................................................."
+          Write-Host "..Youtube Video Tutorial - https://youtu.be/xHr0cPjSRFg .."
+          Write-Host ".........................................................."
+          Write-Host "AnyDesk ID is: $id"
+          Write-Host "AnyDesk Password: $password"
+          Write-Host "You can login now!"
 
       - name: Keep runner alive silently
         shell: cmd
