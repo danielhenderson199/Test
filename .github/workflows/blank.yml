@@ -1,4 +1,4 @@
-name: AnyDesk install + set password attempt
+name: AnyDesk Windows Setup with Password Attempt
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ jobs:
         shell: cmd
         run: |
           where choco || (
-            @powershell -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command ^
+            powershell -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command ^
               "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
           )
 
@@ -20,28 +20,22 @@ jobs:
         shell: cmd
         run: choco install anydesk.portable -y
 
-      - name: Attempt to set AnyDesk password via CLI
+      - name: Attempt to set AnyDesk password
         shell: cmd
         run: |
-          set exe="C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
-          echo daniel64vmmA | %exe% --set-password _full_access
+          set exe=C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe
+          echo Setting AnyDesk password...
+          echo thedanielrdp | "%exe%" --set-password _full_access
 
-      - name: Launch AnyDesk as admin and wait 20 seconds
-        shell: powershell
-        run: |
-          $exe = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
-          if (Test-Path $exe) {
-            Start-Process -FilePath $exe -Verb RunAs
-            Start-Sleep -Seconds 20
-          } else {
-            Write-Error "AnyDesk executable not found"
-          }
-
-      - name: Get AnyDesk ID
+      - name: Launch AnyDesk and get ID
         shell: cmd
         run: |
-          set exe="C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
-          for /f "tokens=*" %%i in ('%exe% --get-id') do (
+          set exe=C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe
+          echo Launching AnyDesk...
+          start "" "%exe%"
+          timeout /t 20 /nobreak >nul
+          echo Getting AnyDesk ID:
+          for /f "tokens=*" %%i in ('"%exe%" --get-id') do (
             echo AnyDesk ID: %%i
           )
 
