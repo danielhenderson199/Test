@@ -1,4 +1,4 @@
-name: Windows AnyDesk Setup with Chocolatey + CMD Get ID
+name: Windows AnyDesk Setup with Chocolatey + Admin Launch + CMD Get ID
 
 on:
   workflow_dispatch:
@@ -31,13 +31,13 @@ jobs:
           $PasswordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
           Set-ItemProperty -Path $RegPath -Name 'Password' -Value $PasswordBytes -Type Binary
 
-      - name: Launch AnyDesk
+      - name: Launch AnyDesk as admin and wait 30 seconds
         shell: powershell
         run: |
           $exe = "C:\ProgramData\chocolatey\lib\anydesk.portable\tools\AnyDesk.exe"
           if (Test-Path $exe) {
-            Start-Process $exe
-            Start-Sleep -Seconds 10
+            Start-Process -FilePath $exe -Verb RunAs
+            Start-Sleep -Seconds 30
           } else {
             Write-Error "AnyDesk executable not found"
           }
