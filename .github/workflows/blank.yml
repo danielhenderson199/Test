@@ -34,7 +34,7 @@ jobs:
 
       - name: Download OVMF files if missing
         run: |
-          if [ ! -f /usr/share/OVMF/OVMF_CODE.fd ]; then
+          if [ ! -f /usr/share/OVMF/OVMF_CODE_4M.fd ]; then
             echo "Downloading OVMF_CODE.fd and OVMF_VARS.fd to runner workspace"
             wget -q https://github.com/tianocore/edk2/releases/download/edk2-stable202307/OVMF_CODE.fd
             wget -q https://github.com/tianocore/edk2/releases/download/edk2-stable202307/OVMF_VARS.fd
@@ -56,9 +56,9 @@ jobs:
 
       - name: Launch QEMU VM with UEFI, 4 cores, 16GB RAM, VNC enabled on :0
         run: |
-          if [ -f /usr/share/OVMF/OVMF_CODE.fd ]; then
-            CODE_PATH=/usr/share/OVMF/OVMF_CODE.fd
-            VARS_PATH=/usr/share/OVMF/OVMF_VARS.fd
+          if [ -f /usr/share/OVMF/OVMF_CODE_4M.fd ]; then
+            CODE_PATH=/usr/share/OVMF/OVMF_CODE_4M.fd
+            VARS_PATH=/usr/share/OVMF/OVMF_VARS_4M.fd
           else
             CODE_PATH=./OVMF_CODE.fd
             VARS_PATH=./OVMF_VARS.fd
